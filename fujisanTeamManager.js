@@ -1,5 +1,46 @@
 export class FujisanTeamManager {
     constructor() {
+        // ━━━ 登山計算定数 ━━━
+        this.CLIMBING_RATE_M_PER_HOUR = 300;      // 平均登山速度（m/時間）
+        this.SUMMIT_ELEVATION = 3776;              // 富士山頂標高（m）
+        this.SUNRISE_TIME = '05:00';               // ご来光時刻
+        this.DESCENT_TIME_RATIO = 0.7;             // 下山時間の比率（登りの70%）
+        this.START_TIME = '10:00';                 // 標準集合時刻
+        this.CLIMBING_START_TIME = '10:30';        // 標準登山開始時刻
+        this.MIN_DINNER_HOUR = 17;                 // 最も早い夕食時刻
+        this.MAX_DINNER_HOUR = 19;                 // 最も遅い夕食時刻
+        this.MIN_BEDTIME_HOUR = 19;                // 最も早い就寝時刻
+        this.MAX_BEDTIME_HOUR = 21;                // 最も遅い就寝時刻
+        this.DESCENT_START_TIME = '07:00';         // 下山開始時刻
+        
+        // ━━━ 体調・安全管理定数 ━━━
+        this.MIN_SLEEP_HOURS = 5;                  // 最低必要睡眠時間
+        this.HEALTH_RECORD_WINDOW_DAYS = 3;        // 体調記録の有効期間（日）
+        this.RECENT_HEALTH_CHECK_HOURS = 48;       // 直近体調チェック期間（時間）
+        this.CRITICAL_CONDITION_THRESHOLD = 2;      // 危険な体調レベル
+        this.HIGH_FATIGUE_THRESHOLD = 4;           // 高疲労レベル
+        
+        // ━━━ 準備度計算の重み ━━━
+        this.SAFETY_WEIGHT = 0.40;                 // 安全管理の重み（40%）
+        this.GEAR_WEIGHT = 0.35;                   // 装備準備の重み（35%）
+        this.EXPERIENCE_WEIGHT = 0.25;             // 経験の重み（25%）
+        
+        // ━━━ 準備度キャップ（上限制限） ━━━
+        this.SAFETY_LOW_CAP = 70;                  // 安全スコア低時の上限
+        this.CRITICAL_GEAR_MISSING_CAP = 60;       // 必須装備欠如時の上限
+        this.NO_RECENT_HEALTH_CAP = 80;            // 直近体調記録なし時の上限
+        
+        // ━━━ 装備カテゴリの重み ━━━
+        this.ESSENTIAL_GEAR_WEIGHT = 0.7;          // 必須装備の重み（70%）
+        this.RECOMMENDED_GEAR_WEIGHT = 0.2;        // 推奨装備の重み（20%）
+        this.SEASONAL_GEAR_WEIGHT = 0.1;           // 季節装備の重み（10%）
+        
+        // ━━━ データ管理 ━━━
+        this.AUTO_SAVE_INTERVAL_MS = 10 * 1000;    // 自動保存間隔（10秒）
+        this.DEBOUNCE_SAVE_MS = 500;               // デバウンス保存遅延
+        this.SERVER_SAVE_DELAY_MS = 1500;          // サーバー保存遅延
+        
+        // ━━━ アプリケーション状態 ━━━
         this.members = [];
         this.teamName = '富士山登頂チーム';
         this.healthRecords = [];
@@ -11,13 +52,15 @@ export class FujisanTeamManager {
         this.mountains = [];
         this.drafts = {};
         this._saveTimer = null;
+        this._dataChanged = false;                 // データ変更フラグ
         this.plan = {
             date: '',
             hut: '',
             route: '',
             entries: [] // { id, time, activity }
         };
-        // Server sync (Vercel KV)
+        
+        // ━━━ サーバー同期設定 ━━━
         this.serverSyncEnabled = true;
         this.teamId = null;
         this.writeToken = null;
@@ -99,6 +142,10 @@ export class FujisanTeamManager {
         }
     }
 
+    /**
+     * データをローカルストレージに保存
+     * 必要に応じてサーバーにも同期
+     */
     saveData() {
         try {
             const data = {
@@ -113,7 +160,11 @@ export class FujisanTeamManager {
                 lastSaved: new Date().toISOString()
             };
             localStorage.setItem('fujisan_team_manager', JSON.stringify(data));
-            if (this.serverSyncEnabled && this.teamId) this.serverSaveDebounced();
+            this._dataChanged = false; // 保存完了後にフラグをリセット
+            
+            if (this.serverSyncEnabled && this.teamId) {
+                this.serverSaveDebounced();
+            }
         } catch (e) {
             console.error('データ保存エラー:', e);
             this.showToast('データ保存に失敗しました', 'error');
@@ -237,6 +288,55 @@ export class FujisanTeamManager {
         }).join('');
     }
     
+    /**
+     * 時刻文字列("HH:MM")を小数時間に変換
+     * @param {string} timeStr - 時刻文字列 (例: "14:30")
+     * @returns {Object} { hours, minutes }
+     */
+    parseTime(timeStr) {
+        const [h, m] = timeStr.split(':').map(Number);
+        return { hours: h || 0, minutes: m || 0 };
+    }
+
+    /**
+     * 小数時間を時刻文字列("HH:MM")に変換
+     * バグ修正：分が60になる問題を解決
+     * @param {number} decimalHours - 小数時間 (例: 14.75 = 14:45)
+     * @returns {string} 時刻文字列 (例: "14:45")
+     */
+    formatTime(decimalHours) {
+        let totalMinutes = Math.round(decimalHours * 60);
+        // 負の時間を翌日に補正
+        while (totalMinutes < 0) {
+            totalMinutes += 24 * 60;
+        }
+        // 24時間を超える場合は0時からに補正
+        totalMinutes = totalMinutes % (24 * 60);
+        
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * 時刻に指定時間を加算
+     * @param {string} timeStr - 基準時刻 (例: "14:00")
+     * @param {number} hoursToAdd - 加算する時間（負の値も可）
+     * @returns {string} 加算後の時刻 (例: "16:30")
+     */
+    addHours(timeStr, hoursToAdd) {
+        const time = this.parseTime(timeStr);
+        const decimalHours = time.hours + (time.minutes / 60) + hoursToAdd;
+        return this.formatTime(decimalHours);
+    }
+
+    /**
+     * 2つの時刻間の経過時間を計算
+     * @param {string} time1 - 開始時刻
+     * @param {string} time2 - 終了時刻
+     * @returns {string} 経過時間の文字列 (例: "2時間30分")
+     */
     calculateTimeDuration(time1, time2) {
         try {
             const [h1, m1] = time1.split(':').map(Number);
@@ -379,43 +479,40 @@ export class FujisanTeamManager {
         const hoursToHut = this.calculateHoursToHut(route, hutElevation);
         
         // ━━━ Day 1（1日目）━━━
-        schedule.push({ time: '10:00', activity: '⛰️ 五合目集合' });
-        schedule.push({ time: '10:30', activity: '📋 装備確認・登山開始' });
+        schedule.push({ time: this.START_TIME, activity: '⛰️ 五合目集合' });
+        schedule.push({ time: this.CLIMBING_START_TIME, activity: '📋 装備確認・登山開始' });
         
         // Add rest stops based on climbing time
         if (hoursToHut >= 3) {
-            const firstRestHour = 10.5 + (hoursToHut / 2);
-            const fh = Math.floor(firstRestHour);
-            const fm = Math.round((firstRestHour % 1) * 60);
+            const firstRestTime = this.formatTime(10.5 + (hoursToHut / 2));
             schedule.push({ 
-                time: `${fh.toString().padStart(2, '0')}:${fm.toString().padStart(2, '0')}`, 
+                time: firstRestTime, 
                 activity: '🍙 休憩・水分補給' 
             });
         }
         
-        // Arrival time at hut
-        const hutArrivalTime = 10.5 + hoursToHut;
-        const hutArrivalHour = Math.floor(hutArrivalTime);
-        const hutArrivalMin = Math.round((hutArrivalTime % 1) * 60);
+        // Arrival time at hut (バグ修正: formatTime関数を使用)
+        const hutArrivalTime = this.formatTime(10.5 + hoursToHut);
+        const hutArrivalHour = this.parseTime(hutArrivalTime).hours;
         schedule.push({ 
-            time: `${hutArrivalHour.toString().padStart(2, '0')}:${hutArrivalMin.toString().padStart(2, '0')}`, 
+            time: hutArrivalTime, 
             activity: `🏠 ${hut.name}到着` 
         });
         
         // Evening at hut
-        const dinnerHour = Math.min(Math.max(hutArrivalHour + 1, 17), 19);
+        const dinnerHour = Math.min(Math.max(hutArrivalHour + 1, this.MIN_DINNER_HOUR), this.MAX_DINNER_HOUR);
         schedule.push({ 
             time: `${dinnerHour.toString().padStart(2, '0')}:00`, 
             activity: '🍱 夕食' 
         });
         
-        const bedtimeHour = Math.min(Math.max(dinnerHour + 2, 19), 21);
+        const bedtimeHour = Math.min(Math.max(dinnerHour + 2, this.MIN_BEDTIME_HOUR), this.MAX_BEDTIME_HOUR);
         schedule.push({ 
             time: `${bedtimeHour.toString().padStart(2, '0')}:00`, 
             activity: '🌙 就寝' 
         });
         
-        const sunriseTime = '05:00';
+        const sunriseTime = this.SUNRISE_TIME;
         const departureHour = 5 - Math.ceil(hoursToSummit);
         
         // Wake up and departure
@@ -436,36 +533,41 @@ export class FujisanTeamManager {
         });
         
         // Sunrise at summit
-        schedule.push({ time: sunriseTime, activity: '🌅 山頂でご来光（標高3776m）' });
+        schedule.push({ time: sunriseTime, activity: `🌅 山頂でご来光（標高${this.SUMMIT_ELEVATION}m）` });
         schedule.push({ time: '06:00', activity: '📸 記念撮影・休憩' });
-        schedule.push({ time: '07:00', activity: '⬇️ 下山開始' });
+        schedule.push({ time: this.DESCENT_START_TIME, activity: '⬇️ 下山開始' });
         
-        // Descent
-        const totalDescentTime = hoursToHut * 0.7; // Faster than ascent
-        const fiveGoArrivalTime = 7 + totalDescentTime;
-        const fah = Math.floor(fiveGoArrivalTime);
-        const fam = Math.round((fiveGoArrivalTime % 1) * 60);
+        // Descent (バグ修正: formatTime関数を使用)
+        const totalDescentTime = hoursToHut * this.DESCENT_TIME_RATIO;
+        const fiveGoArrivalTime = this.formatTime(7 + totalDescentTime);
         
         schedule.push({ 
-            time: `${fah.toString().padStart(2, '0')}:${fam.toString().padStart(2, '0')}`, 
+            time: fiveGoArrivalTime, 
             activity: '⛰️ 五合目到着・解散' 
         });
         
         return schedule;
     }
     
+    /**
+     * 山小屋から山頂までの登山時間を計算
+     * @param {number} hutElevation - 山小屋の標高（m）
+     * @returns {number} 登山時間（時間）
+     */
     calculateHoursToSummit(hutElevation) {
-        // Summit is at 3776m
-        const elevationDiff = 3776 - hutElevation;
-        
-        // Rough estimate: 300m per hour on average
-        const hours = elevationDiff / 300;
-        
-        return Math.max(1, Math.min(hours, 6)); // Between 1-6 hours
+        const elevationDiff = this.SUMMIT_ELEVATION - hutElevation;
+        const hours = elevationDiff / this.CLIMBING_RATE_M_PER_HOUR;
+        return Math.max(1, Math.min(hours, 6)); // 1-6時間の範囲に制限
     }
     
+    /**
+     * 五合目から山小屋までの登山時間を計算
+     * @param {string} route - ルート名
+     * @param {number} hutElevation - 山小屋の標高（m）
+     * @returns {number} 登山時間（時間）
+     */
     calculateHoursToHut(route, hutElevation) {
-        // Different routes have different starting elevations
+        // 各ルートの五合目標高
         const routeStartElevations = {
             '吉田ルート': 2305,
             '富士宮ルート': 2400,
@@ -475,11 +577,9 @@ export class FujisanTeamManager {
         
         const startElevation = routeStartElevations[route] || 2305;
         const elevationDiff = hutElevation - startElevation;
+        const hours = elevationDiff / this.CLIMBING_RATE_M_PER_HOUR;
         
-        // Estimate: 300m per hour for average climber
-        const hours = elevationDiff / 300;
-        
-        return Math.max(hours, 0.5); // At least 30 minutes
+        return Math.max(hours, 0.5); // 最低30分
     }
     
     calculateHutArrivalTime(route, hutElevation) {
@@ -504,12 +604,34 @@ export class FujisanTeamManager {
         return Math.min(Math.max(Math.floor(arrivalTime), 14), 18); // Between 14:00-18:00
     }
 
+    /**
+     * 自動保存を設定
+     * パフォーマンス改善：データ変更時のみ保存
+     */
     setupAutoSave() {
-        setInterval(() => this.saveData(), 10 * 1000);
-        window.addEventListener('beforeunload', () => this.saveData());
+        // データ変更がある場合のみ定期保存
+        setInterval(() => {
+            if (this._dataChanged) {
+                this.saveData();
+                this._dataChanged = false;
+            }
+        }, this.AUTO_SAVE_INTERVAL_MS);
+        
+        // ページ離脱時に未保存データを保存
+        window.addEventListener('beforeunload', () => {
+            if (this._dataChanged) {
+                this.saveData();
+            }
+        });
     }
 
-    scheduleSave(delayMs = 500) {
+    /**
+     * 保存をスケジュール（デバウンス処理）
+     * @param {number} delayMs - 保存までの遅延時間（ミリ秒）
+     */
+    scheduleSave(delayMs = this.DEBOUNCE_SAVE_MS) {
+        this._dataChanged = true;
+        
         if (this._saveTimer) clearTimeout(this._saveTimer);
         this._saveTimer = setTimeout(() => {
             this.saveData();
@@ -577,22 +699,41 @@ export class FujisanTeamManager {
         this.renderPlanEntries();
     }
 
+    /**
+     * URL パラメータからチーム設定を読み込む
+     * セキュリティ対策：
+     * - teamId: localStorageに保存（永続化）
+     * - token: sessionStorageに保存（ブラウザを閉じたら削除）
+     */
     parseTeamConfigFromUrl() {
         try {
             const url = new URL(window.location.href);
             const teamId = url.searchParams.get('team');
             const token = url.searchParams.get('token');
-            if (teamId) this.teamId = teamId;
-            if (token) this.writeToken = token;
-            // Persist for next visits
-            if (this.teamId) localStorage.setItem('fujisan_team_id', this.teamId);
-            if (this.writeToken) localStorage.setItem('fujisan_write_token', this.writeToken);
+            
+            // Team IDは永続化（セキュリティリスクは低い）
+            if (teamId) {
+                this.teamId = teamId;
+                localStorage.setItem('fujisan_team_id', this.teamId);
+            }
+            
+            // トークンはSessionStorageに保存（セキュリティ向上）
+            if (token) {
+                this.writeToken = token;
+                sessionStorage.setItem('fujisan_write_token', this.writeToken);
+            }
         } catch (_) {
-            // ignore
+            // ignore URL parsing errors
         }
-        // fallback from localStorage
-        if (!this.teamId) this.teamId = localStorage.getItem('fujisan_team_id') || null;
-        if (!this.writeToken) this.writeToken = localStorage.getItem('fujisan_write_token') || null;
+        
+        // フォールバック：保存されたデータから復元
+        if (!this.teamId) {
+            this.teamId = localStorage.getItem('fujisan_team_id') || null;
+        }
+        if (!this.writeToken) {
+            // SessionStorageから復元（ブラウザセッション中のみ有効）
+            this.writeToken = sessionStorage.getItem('fujisan_write_token') || null;
+        }
     }
 
     async serverLoadState() {
@@ -616,9 +757,12 @@ export class FujisanTeamManager {
         }
     }
 
+    /**
+     * サーバー保存をデバウンス処理
+     */
     serverSaveDebounced() {
         if (this._serverSaveTimer) clearTimeout(this._serverSaveTimer);
-        this._serverSaveTimer = setTimeout(() => this.serverSaveNow(), 1500);
+        this._serverSaveTimer = setTimeout(() => this.serverSaveNow(), this.SERVER_SAVE_DELAY_MS);
     }
 
     async serverSaveNow() {
@@ -704,15 +848,43 @@ export class FujisanTeamManager {
         document.getElementById('teamNameEdit').style.display = 'none';
     }
 
-    // Members
+    /**
+     * メンバーを追加
+     * バリデーション強化版
+     */
     addMember() {
         this.safeExecute(() => {
             const name = document.getElementById('memberName').value.trim();
-            const age = parseInt(document.getElementById('memberAge').value) || null;
+            const ageInput = document.getElementById('memberAge').value;
+            const age = ageInput ? parseInt(ageInput) : null;
             const experience = document.getElementById('memberExperience').value;
-            if (!name) { this.showToast('名前を入力してください', 'warning'); return; }
-            if (this.members.some(m => m.name === name)) { this.showToast('同じ名前のメンバーが既に存在します', 'warning'); return; }
-            const member = { id: Date.now(), name, age, experience, joinedAt: new Date().toISOString() };
+            
+            // バリデーション
+            if (!name) {
+                this.showToast('名前を入力してください', 'warning');
+                return;
+            }
+            if (name.length > 50) {
+                this.showToast('名前は50文字以内で入力してください', 'warning');
+                return;
+            }
+            if (age !== null && (isNaN(age) || age < 0 || age > 150)) {
+                this.showToast('年齢は0〜150の範囲で入力してください', 'warning');
+                return;
+            }
+            if (this.members.some(m => m.name === name)) {
+                this.showToast('同じ名前のメンバーが既に存在します', 'warning');
+                return;
+            }
+            
+            const member = {
+                id: Date.now(),
+                name,
+                age,
+                experience,
+                joinedAt: new Date().toISOString()
+            };
+            
             this.members.push(member);
             this.gearChecklist[member.id] = {};
             this.clearMemberForm();
@@ -766,6 +938,10 @@ export class FujisanTeamManager {
         document.getElementById('sleepHours').value = '';
         document.getElementById('fatigueLevel').value = '1';
     }
+    /**
+     * 体調記録履歴を表示
+     * メモリリーク対策：モーダルを適切にクリーンアップ
+     */
     showHealthHistory() {
         if (this.healthRecords.length === 0) { this.showToast('体調記録がありません', 'warning'); return; }
         const historyHtml = this.healthRecords
@@ -791,6 +967,18 @@ export class FujisanTeamManager {
                 <button class="btn" data-action="close-modal">閉じる</button>
             </div>
         `;
+        
+        // メモリリーク対策：モーダルクローズ時にDOMから削除
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target.matches('[data-action="close-modal"]') || e.target === modal) {
+                closeModal();
+            }
+        });
+        
         document.body.appendChild(modal);
     }
     updateRiskAssessment() {
@@ -965,15 +1153,48 @@ export class FujisanTeamManager {
         this.showToast('装備リストをダウンロードしました', 'success');
     }
 
-    // Mountains
+    /**
+     * 山を登録
+     * バリデーション強化版
+     */
     addMountain() {
         this.safeExecute(() => {
             const mountainName = document.getElementById('newMountainName').value.trim();
-            const elevation = parseInt(document.getElementById('newMountainElevation').value) || 0;
-            const distance = parseFloat(document.getElementById('newMountainDistance').value) || 0;
-            if (!mountainName) { this.showToast('山名を入力してください', 'warning'); return; }
-            if (this.mountains.some(m => m.name === mountainName)) { this.showToast('既に登録されている山名です', 'warning'); return; }
-            const mountain = { id: Date.now(), name: mountainName, elevation, distance, addedAt: new Date().toISOString() };
+            const elevationInput = document.getElementById('newMountainElevation').value;
+            const distanceInput = document.getElementById('newMountainDistance').value;
+            const elevation = elevationInput ? parseInt(elevationInput) : 0;
+            const distance = distanceInput ? parseFloat(distanceInput) : 0;
+            
+            // バリデーション
+            if (!mountainName) {
+                this.showToast('山名を入力してください', 'warning');
+                return;
+            }
+            if (mountainName.length > 100) {
+                this.showToast('山名は100文字以内で入力してください', 'warning');
+                return;
+            }
+            if (elevation < 0 || elevation > 9000) {
+                this.showToast('標高は0〜9000mの範囲で入力してください', 'warning');
+                return;
+            }
+            if (distance < 0 || distance > 1000) {
+                this.showToast('距離は0〜1000kmの範囲で入力してください', 'warning');
+                return;
+            }
+            if (this.mountains.some(m => m.name === mountainName)) {
+                this.showToast('既に登録されている山名です', 'warning');
+                return;
+            }
+            
+            const mountain = {
+                id: Date.now(),
+                name: mountainName,
+                elevation,
+                distance,
+                addedAt: new Date().toISOString()
+            };
+            
             this.mountains.push(mountain);
             this.saveData();
             this.clearMountainForm();
@@ -1083,6 +1304,10 @@ export class FujisanTeamManager {
         document.getElementById('weather').value = '晴れ';
         document.getElementById('hikingNotes').value = '';
     }
+    /**
+     * 全登山記録を表示
+     * メモリリーク対策：モーダルを適切にクリーンアップ
+     */
     showAllHikingRecords() {
         if (this.hikingRecords.length === 0) { this.showToast('登山記録がありません', 'warning'); return; }
         const recordsHtml = this.hikingRecords
@@ -1106,6 +1331,18 @@ export class FujisanTeamManager {
                 <button class="btn" data-action="close-modal">閉じる</button>
             </div>
         `;
+        
+        // メモリリーク対策：モーダルクローズ時にDOMから削除
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target.matches('[data-action="close-modal"]') || e.target === modal) {
+                closeModal();
+            }
+        });
+        
         document.body.appendChild(modal);
     }
     clearHikingRecords() {
@@ -1207,48 +1444,89 @@ export class FujisanTeamManager {
         else if (score >= 40) level = '中級者';
         return { score, level };
     }
-    // New standard weighting (B): Safety 40%, Gear 35%, Experience 25%
+    /**
+     * メンバーの総合準備度を計算
+     * 
+     * 重み付け:
+     * - 安全管理: 40% (最も重要。体調管理が登山の成否を決める)
+     * - 装備: 35% (必須装備が欠けていると危険)
+     * - 経験: 25% (経験は重要だが、準備で補える)
+     * 
+     * 安全キャップ（上限制限）:
+     * - 安全スコア < 50 → 最大70%に制限
+     * - 必須装備欠如 → 最大60%に制限
+     * - 48時間以内の体調記録なし → 最大80%に制限
+     * 
+     * @param {Object} member - メンバー情報
+     * @param {number} safetyScore - 安全管理スコア (0-100)
+     * @param {number} gearScore - 装備スコア (0-100)
+     * @param {number} experienceScore - 経験スコア (0-100)
+     * @returns {number} 総合準備度 (0-100)
+     */
     calculateOverallPreparationStandard(member, safetyScore, gearScore, experienceScore) {
-        const wSafety = 0.40;
-        const wGear = 0.35;
-        const wExp = 0.25;
-        let overall = Math.round((safetyScore * wSafety) + (gearScore * wGear) + (experienceScore * wExp));
-        // Apply caps (safety nets)
-        const hasRecent48h = this.hasRecentHealthWithinHours(member, 48);
+        let overall = Math.round(
+            (safetyScore * this.SAFETY_WEIGHT) + 
+            (gearScore * this.GEAR_WEIGHT) + 
+            (experienceScore * this.EXPERIENCE_WEIGHT)
+        );
+        
+        // 安全キャップを適用
+        const hasRecent48h = this.hasRecentHealthWithinHours(member, this.RECENT_HEALTH_CHECK_HOURS);
         const safetyLow = safetyScore < 50;
         const criticalMissing = this.hasCriticalGearMissing(member.id);
-        if (safetyLow) overall = Math.min(overall, 70);
-        if (criticalMissing) overall = Math.min(overall, 60);
-        if (!hasRecent48h) overall = Math.min(overall, 80);
+        
+        if (safetyLow) overall = Math.min(overall, this.SAFETY_LOW_CAP);
+        if (criticalMissing) overall = Math.min(overall, this.CRITICAL_GEAR_MISSING_CAP);
+        if (!hasRecent48h) overall = Math.min(overall, this.NO_RECENT_HEALTH_CAP);
+        
         return overall;
     }
 
+    /**
+     * 安全管理スコアを計算
+     * 体調記録（3日以内）から総合的な安全度を評価
+     * @param {number} memberId - メンバーID
+     * @returns {number} 安全スコア (0-100)
+     */
     computeSafetyScore(memberId) {
-        const recentWindowDays = 3;
         const now = new Date();
         const windowStart = new Date(now.getTime());
-        windowStart.setDate(windowStart.getDate() - recentWindowDays);
-        const records = this.healthRecords.filter(h => h.memberId === memberId && new Date(h.recordedAt) >= windowStart);
+        windowStart.setDate(windowStart.getDate() - this.HEALTH_RECORD_WINDOW_DAYS);
+        
+        const records = this.healthRecords.filter(
+            h => h.memberId === memberId && new Date(h.recordedAt) >= windowStart
+        );
+        
         if (records.length === 0) {
-            // No recent data → conservative baseline and cap will apply elsewhere
+            // データなし → 保守的なベースライン
             return 70;
         }
+        
         const avg = (arr) => arr.reduce((s, v) => s + v, 0) / arr.length;
         const conditions = records.map(r => r.condition).filter(v => typeof v === 'number');
         const fatigues = records.map(r => r.fatigueLevel).filter(v => typeof v === 'number');
         const sleepsAll = records.map(r => r.sleepHours).filter(v => typeof v === 'number' && !isNaN(v));
+        
         const avgCondition = conditions.length ? avg(conditions) : 3;
         const avgFatigue = fatigues.length ? avg(fatigues) : 2;
         const avgSleep = sleepsAll.length ? avg(sleepsAll) : 7;
-        // Normalize to 0-100
-        const conditionScore = Math.max(0, Math.min(1, (avgCondition - 1) / 4)) * 100; // 1..5
-        const fatigueScore = Math.max(0, Math.min(1, (5 - avgFatigue) / 4)) * 100; // invert 1..5
-        const sleepScore = Math.max(0, Math.min(1, avgSleep / 7)) * 100; // 7h baseline
+        
+        // 0-100に正規化
+        const conditionScore = Math.max(0, Math.min(1, (avgCondition - 1) / 4)) * 100;
+        const fatigueScore = Math.max(0, Math.min(1, (5 - avgFatigue) / 4)) * 100;
+        const sleepScore = Math.max(0, Math.min(1, avgSleep / 7)) * 100;
+        
         let safety = Math.round(conditionScore * 0.5 + fatigueScore * 0.3 + sleepScore * 0.2);
-        // Red flags → cap safety
-        const redFlag = records.some(r => (r.condition && r.condition <= 2) || (r.fatigueLevel && r.fatigueLevel >= 4) || (typeof r.sleepHours === 'number' && r.sleepHours < 5));
+        
+        // 危険信号チェック
+        const redFlag = records.some(r => 
+            (r.condition && r.condition <= this.CRITICAL_CONDITION_THRESHOLD) || 
+            (r.fatigueLevel && r.fatigueLevel >= this.HIGH_FATIGUE_THRESHOLD) || 
+            (typeof r.sleepHours === 'number' && r.sleepHours < this.MIN_SLEEP_HOURS)
+        );
+        
         if (redFlag) safety = Math.min(safety, 60);
-        // If no record within last 48h, cap will be applied in overall
+        
         return safety;
     }
 
@@ -1257,22 +1535,35 @@ export class FujisanTeamManager {
         return this.healthRecords.some(h => h.memberId === member.id && new Date(h.recordedAt) >= cutoff);
     }
 
+    /**
+     * 装備準備スコアを計算
+     * 必須(70%)、推奨(20%)、季節(10%)の重み付けで評価
+     * @param {number} memberId - メンバーID
+     * @returns {number} 装備スコア (0-100)
+     */
     computeGearScore(memberId) {
         const categories = [
-            { key: 'essential', weight: 0.7 },
-            { key: 'recommended', weight: 0.2 },
-            { key: 'seasonal', weight: 0.1 }
+            { key: 'essential', weight: this.ESSENTIAL_GEAR_WEIGHT },
+            { key: 'recommended', weight: this.RECOMMENDED_GEAR_WEIGHT },
+            { key: 'seasonal', weight: this.SEASONAL_GEAR_WEIGHT }
         ];
         const memberGear = this.gearChecklist[memberId] || {};
         let score = 0;
+        
         categories.forEach(({ key, weight }) => {
             const items = this.gearCategories[key].items;
             const checked = items.filter(it => memberGear[it.id]).length;
             const ratio = items.length ? checked / items.length : 0;
             score += ratio * weight * 100;
         });
+        
         score = Math.round(score);
-        if (this.hasCriticalGearMissing(memberId)) score = Math.min(score, 40);
+        
+        // 必須装備が欠けている場合は大幅減点
+        if (this.hasCriticalGearMissing(memberId)) {
+            score = Math.min(score, 40);
+        }
+        
         return score;
     }
 
