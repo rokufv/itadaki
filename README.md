@@ -67,6 +67,24 @@ python3 -m http.server 8000
   - Cloudflare Pages: Cloudflare AccessでSSO保護
 
 ### 3) 一時共有（簡易トンネル）
+## チーム共有（Vercel KV 同期）
+URLを知っているメンバー間で状態を共有したい場合、Vercel KVを使用してサーバ同期できます。
+
+### セットアップ
+1. Vercelダッシュボード → Storage → KV を有効化
+2. 環境変数を設定
+   - `KV_REST_API_URL`（自動付与）
+   - `KV_REST_API_TOKEN`（自動付与）
+   - `WRITE_TOKEN`（任意。サーバ保存に必要な共有トークン。設定しない場合は無認可でも保存可能になるため原則設定推奨）
+
+### 使い方
+- 共有用URLに `?team=YOUR_TEAM_ID` を付与してメンバーに配布
+  - 例: `https://<your-vercel-domain>/?team=fujisan-2025`
+- 書き込み保護を使う場合は `&token=WRITE_TOKEN` を付与（初回アクセス時に端末へ保存されます）
+  - 例: `https://<your-vercel-domain>/?team=fujisan-2025&token=xxxxxx`
+
+アプリは起動時に `/api/state?teamId=...` から状態を取得し、変更時は自動的に `/api/state`（POST）で保存します（デバウンス）。
+オフライン時はlocalStorageに保存し、復帰時に同期します。
 - ローカル `python3 -m http.server 8000`
 - `ngrok http 8000` などで外部URLを発行
 

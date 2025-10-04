@@ -17,6 +17,12 @@ function bindCoreEvents() {
     // Members
     document.getElementById('addMemberBtn')?.addEventListener('click', () => app.addMember());
     document.getElementById('memberName')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') app.addMember(); });
+    document.getElementById('memberList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action="delete-member"]');
+        if (!btn) return;
+        const id = parseInt(btn.getAttribute('data-id'), 10);
+        if (Number.isFinite(id)) app.deleteMember(id);
+    });
 
     // Health
     document.getElementById('recordHealthBtn')?.addEventListener('click', () => app.recordHealth());
@@ -119,6 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'planDate','planHut','planTime','planActivity'
     ];
     const draftHandler = () => {
+        const gearMemberEl = document.getElementById('gearMember');
+        const gearMemberValue = gearMemberEl?.value || '';
         const d = {
             memberName: document.getElementById('memberName')?.value || '',
             memberAge: document.getElementById('memberAge')?.value || '',
@@ -127,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             healthCondition: document.getElementById('healthCondition')?.value || '3',
             sleepHours: document.getElementById('sleepHours')?.value || '',
             fatigueLevel: document.getElementById('fatigueLevel')?.value || '1',
-            currentGearMemberId: document.getElementById('gearMember')?.value || '',
+            currentGearMemberId: gearMemberValue ? parseInt(gearMemberValue, 10) : '',
             currentGearCategory: app.currentGearCategory,
             newMountainName: document.getElementById('newMountainName')?.value || '',
             newMountainElevation: document.getElementById('newMountainElevation')?.value || '',

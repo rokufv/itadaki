@@ -16,6 +16,11 @@ export class FujisanTeamManager {
             hut: '',
             entries: [] // { id, time, activity }
         };
+        // Server sync (Vercel KV)
+        this.serverSyncEnabled = true;
+        this.teamId = null;
+        this.writeToken = null;
+        this._serverSaveTimer = null;
 
         this.gearCategories = {
             essential: {
@@ -53,8 +58,12 @@ export class FujisanTeamManager {
 
     init() {
         this.loadData();
+        this.parseTeamConfigFromUrl();
         this.updateDisplay();
         this.setupAutoSave();
+        if (this.serverSyncEnabled && this.teamId) {
+            this.serverLoadState();
+        }
     }
 
     saveData() {
@@ -71,6 +80,7 @@ export class FujisanTeamManager {
                 lastSaved: new Date().toISOString()
             };
             localStorage.setItem('fujisan_team_manager', JSON.stringify(data));
+            if (this.serverSyncEnabled && this.teamId) this.serverSaveDebounced();
         } catch (e) {
             console.error('データ保存エラー:', e);
             this.showToast('データ保存に失敗しました', 'error');
@@ -213,8 +223,10 @@ export class FujisanTeamManager {
         // gear
         if (typeof d.currentGearMemberId !== 'undefined') {
             const gearMember = document.getElementById('gearMember');
-            if (gearMember) gearMember.value = String(d.currentGearMemberId || '');
-            this.currentGearMemberId = d.currentGearMemberId || null;
+            const restoredId = typeof d.currentGearMemberId === 'number' ? d.currentGearMemberId : parseInt(d.currentGearMemberId, 10);
+            const validId = Number.isFinite(restoredId) ? restoredId : null;
+            if (gearMember) gearMember.value = validId !== null ? String(validId) : '';
+            this.currentGearMemberId = validId;
         }
         if (typeof d.currentGearCategory === 'string') this.currentGearCategory = d.currentGearCategory;
 
@@ -244,6 +256,84 @@ export class FujisanTeamManager {
         if (this.currentGearMemberId) this.showGearCategory(this.currentGearCategory);
         // render plan entries
         this.renderPlanEntries();
+    }
+
+    parseTeamConfigFromUrl() {
+        try {
+            const url = new URL(window.location.href);
+            const teamId = url.searchParams.get('team');
+            const token = url.searchParams.get('token');
+            if (teamId) this.teamId = teamId;
+            if (token) this.writeToken = token;
+            // Persist for next visits
+            if (this.teamId) localStorage.setItem('fujisan_team_id', this.teamId);
+            if (this.writeToken) localStorage.setItem('fujisan_write_token', this.writeToken);
+        } catch (_) {
+            // ignore
+        }
+        // fallback from localStorage
+        if (!this.teamId) this.teamId = localStorage.getItem('fujisan_team_id') || null;
+        if (!this.writeToken) this.writeToken = localStorage.getItem('fujisan_write_token') || null;
+    }
+
+    async serverLoadState() {
+        try {
+            const res = await fetch(`/api/state?teamId=${encodeURIComponent(this.teamId)}`, { cache: 'no-store' });
+            if (!res.ok) return;
+            const json = await res.json();
+            if (json && json.state) {
+                const s = json.state;
+                this.members = s.members || [];
+                this.teamName = s.teamName || this.teamName;
+                this.healthRecords = s.healthRecords || [];
+                this.gearChecklist = s.gearChecklist || {};
+                this.hikingRecords = s.hikingRecords || [];
+                this.mountains = s.mountains || [];
+                this.plan = s.plan || this.plan;
+                this.updateDisplay();
+            }
+        } catch (e) {
+            console.warn('Server load failed', e);
+        }
+    }
+
+    serverSaveDebounced() {
+        if (this._serverSaveTimer) clearTimeout(this._serverSaveTimer);
+        this._serverSaveTimer = setTimeout(() => this.serverSaveNow(), 1500);
+    }
+
+    async serverSaveNow() {
+        try {
+            const state = {
+                members: this.members,
+                teamName: this.teamName,
+                healthRecords: this.healthRecords,
+                gearChecklist: this.gearChecklist,
+                hikingRecords: this.hikingRecords,
+                mountains: this.mountains,
+                plan: this.plan
+            };
+            const body = { teamId: this.teamId, state };
+            if (this.writeToken) body.token = this.writeToken;
+            const res = await fetch('/api/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                let detail = '';
+                try { detail = await res.text(); } catch (_) { /* ignore */ }
+                const message = res.status === 401
+                    ? 'サーバー保存に失敗しました（認証エラー）'
+                    : `サーバー保存に失敗しました (コード: ${res.status})`;
+                this.showToast(message, 'error');
+                console.warn('Server save failed', res.status, detail);
+                return;
+            }
+        } catch (e) {
+            console.warn('Server save failed', e);
+            this.showToast('サーバー保存に失敗しました', 'error');
+        }
     }
 
     safeExecute(fn, context = 'Operation') {
@@ -396,7 +486,10 @@ export class FujisanTeamManager {
             if (memberRecords.length > 0) {
                 const avgCondition = memberRecords.reduce((sum, r) => sum + r.condition, 0) / memberRecords.length;
                 const avgFatigue = memberRecords.reduce((sum, r) => sum + r.fatigueLevel, 0) / memberRecords.length;
-                const avgSleep = memberRecords.filter(r => r.sleepHours).reduce((sum, r) => sum + r.sleepHours, 0) / (memberRecords.filter(r => r.sleepHours).length || 1);
+                const sleepValues = memberRecords
+                    .map(r => r.sleepHours)
+                    .filter(v => typeof v === 'number' && !Number.isNaN(v));
+                const avgSleep = sleepValues.length ? sleepValues.reduce((sum, v) => sum + v, 0) / sleepValues.length : 7;
                 if (avgCondition <= 2 || avgFatigue >= 4 || avgSleep < 5) { riskText = '高リスク'; riskColor = 'status-poor'; }
                 else if (avgCondition <= 3 || avgFatigue >= 3 || avgSleep < 6) { riskText = '中リスク'; riskColor = 'status-good'; }
             } else {
