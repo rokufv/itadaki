@@ -301,6 +301,67 @@ body {
     min-width: 200px;
 }
 
+/* Mountain Preset Section */
+.mountain-preset-section {
+    margin-bottom: 25px;
+}
+
+.mountain-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.mountain-preset-btn {
+    background: white;
+    border: 2px solid var(--success-color);
+    border-radius: 12px;
+    padding: 16px 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--dark-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 56px;
+}
+
+.mountain-preset-btn:active {
+    transform: scale(0.95);
+    background: var(--success-color);
+    color: white;
+}
+
+.mountain-preset-btn:hover {
+    background: rgba(40, 167, 69, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+}
+
+@keyframes mountainSelect {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); background: var(--success-color); color: white; }
+    100% { transform: scale(1); }
+}
+
+/* Mountain Input Form */
+.mountain-input-form {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+}
+
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
 /* Bottom Navigation */
 .bottom-nav {
     position: fixed;
@@ -857,6 +918,26 @@ body {
     .gear-checkbox {
         width: 32px;
         height: 32px;
+    }
+
+    /* Mountain preset mobile */
+    .mountain-preset-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mountain-preset-btn {
+        padding: 18px 16px;
+        font-size: 17px;
+        min-height: 60px;
+    }
+
+    .form-row-2 {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .mountain-input-form {
+        padding: 15px;
     }
 }
 

@@ -96,6 +96,31 @@ function bindCoreEvents() {
         }
     });
 
+    // Mountain Preset Buttons
+    document.querySelectorAll('.mountain-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mountainName = btn.dataset.mountain;
+            const elevation = btn.dataset.elevation;
+            const distance = btn.dataset.distance;
+            
+            // Fill the form
+            document.getElementById('newMountainName').value = mountainName;
+            document.getElementById('newMountainElevation').value = elevation;
+            document.getElementById('newMountainDistance').value = distance;
+            
+            // Visual feedback
+            btn.style.animation = 'none';
+            setTimeout(() => {
+                btn.style.animation = '';
+            }, 10);
+            
+            // Scroll to form
+            document.querySelector('.mountain-input-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            app.showToast(`${mountainName}を選択しました`, 'success');
+        });
+    });
+
     // Hiking
     document.getElementById('recordHikingBtn')?.addEventListener('click', () => app.recordHiking());
     document.getElementById('clearHikingFormBtn')?.addEventListener('click', () => app.clearHikingForm());

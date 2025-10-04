@@ -266,24 +266,46 @@
                 <h2>⛰️ 登山記録</h2>
                 <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
                     <h3 style="margin-top: 0;">🏔️ 山名登録</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label>山名</label>
-                            <input type="text" id="newMountainName" placeholder="高尾山">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label>標高（m）</label>
-                            <input type="number" id="newMountainElevation" min="0" max="4000" placeholder="599">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label>距離（km）</label>
-                            <input type="number" id="newMountainDistance" step="0.1" min="0" max="50" placeholder="6.5">
-                        </div>
-                        <div>
-                            <button class="btn" id="addMountainBtn">🏔️ 山を登録</button>
+                    
+                    <!-- Popular Mountains Preset -->
+                    <div class="mountain-preset-section">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 600;">人気の山から選択</label>
+                        <div class="mountain-preset-grid">
+                            <button class="mountain-preset-btn" data-mountain="富士山" data-elevation="3776" data-distance="20">🗻 富士山</button>
+                            <button class="mountain-preset-btn" data-mountain="高尾山" data-elevation="599" data-distance="6.5">🌲 高尾山</button>
+                            <button class="mountain-preset-btn" data-mountain="筑波山" data-elevation="877" data-distance="8">⛰️ 筑波山</button>
+                            <button class="mountain-preset-btn" data-mountain="北岳" data-elevation="3193" data-distance="18">🏔️ 北岳</button>
+                            <button class="mountain-preset-btn" data-mountain="槍ヶ岳" data-elevation="3180" data-distance="22">⛰️ 槍ヶ岳</button>
+                            <button class="mountain-preset-btn" data-mountain="穂高岳" data-elevation="3190" data-distance="20">🏔️ 穂高岳</button>
+                            <button class="mountain-preset-btn" data-mountain="立山" data-elevation="3015" data-distance="15">⛰️ 立山</button>
+                            <button class="mountain-preset-btn" data-mountain="八ヶ岳" data-elevation="2899" data-distance="16">🏔️ 八ヶ岳</button>
                         </div>
                     </div>
-                    <div style="margin-top: 15px;">
+
+                    <div style="text-align: center; margin: 20px 0; color: #666; font-size: 0.9em;">
+                        または手動で入力
+                    </div>
+
+                    <!-- Manual Input Form -->
+                    <div class="mountain-input-form">
+                        <div class="form-group">
+                            <label>山名</label>
+                            <input type="text" id="newMountainName" placeholder="例: 高尾山">
+                        </div>
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label>標高（m）</label>
+                                <input type="number" id="newMountainElevation" min="0" max="4000" placeholder="599">
+                            </div>
+                            <div class="form-group">
+                                <label>距離（km）</label>
+                                <input type="number" id="newMountainDistance" step="0.1" min="0" max="50" placeholder="6.5">
+                            </div>
+                        </div>
+                        <button class="btn btn-large btn-success" id="addMountainBtn">🏔️ 山を登録</button>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
                         <button class="btn btn-info" id="showMountainListBtn">📋 登録済み山一覧</button>
                         <button class="btn btn-danger" id="clearAllMountainsBtn">🗑️ 全山削除</button>
                     </div>
