@@ -203,11 +203,30 @@ export class FujisanTeamManager {
         this.plan.hut = hut || '';
         this.scheduleSave(300);
     }
+    /**
+     * 手動でスケジュールエントリーを追加
+     * 既存の最大order番号+1を設定
+     */
     addPlanEntry() {
         const time = document.getElementById('planTime')?.value || '';
         const activity = document.getElementById('planActivity')?.value.trim() || '';
-        if (!time || !activity) { this.showToast('時刻とアクティビティを入力してください', 'warning'); return; }
-        const entry = { id: Date.now(), time, activity };
+        if (!time || !activity) { 
+            this.showToast('時刻とアクティビティを入力してください', 'warning'); 
+            return; 
+        }
+        
+        // 既存の最大order番号を取得（手動追加も順序を保持）
+        const maxOrder = this.plan.entries.length > 0 
+            ? Math.max(...this.plan.entries.map(e => e.order || 0))
+            : -1;
+        
+        const entry = { 
+            id: Date.now(), 
+            time, 
+            activity,
+            order: maxOrder + 1 // 末尾に追加
+        };
+        
         this.plan.entries.push(entry);
         this.renderPlanEntries();
         this.scheduleSave(300);
@@ -257,10 +276,24 @@ export class FujisanTeamManager {
         URL.revokeObjectURL(url);
         this.showToast('登頂計画をダウンロードしました', 'success');
     }
+    /**
+     * タイムラインエントリーを表示
+     * order番号がある場合はそれを優先、ない場合は時刻でソート
+     */
     renderPlanEntries() {
         const container = document.getElementById('planScheduleList');
         if (!container) return;
-        const sorted = [...this.plan.entries].sort((a,b) => a.time.localeCompare(b.time));
+        
+        // 自動生成スケジュール（order有）は生成順、手動入力（order無）は時刻順
+        const sorted = [...this.plan.entries].sort((a, b) => {
+            // 両方にorderがある場合は、order順でソート
+            if (typeof a.order === 'number' && typeof b.order === 'number') {
+                return a.order - b.order;
+            }
+            // orderがない場合は時刻でソート（後方互換性）
+            return a.time.localeCompare(b.time);
+        });
+        
         if (sorted.length === 0) {
             container.innerHTML = '<div class="empty-state">スケジュールがありません</div>';
             return;
@@ -432,6 +465,10 @@ export class FujisanTeamManager {
         this.showToast(`${hutName}を選択しました`, 'success');
     }
     
+    /**
+     * 自動スケジュールを生成
+     * 生成順序を保持するため、各エントリーにorder番号を付与
+     */
     generateAutoSchedule() {
         if (!this.plan.route || !this.plan.hut) {
             this.showToast('先にルートと山小屋を選択してください', 'warning');
@@ -452,12 +489,13 @@ export class FujisanTeamManager {
         // Clear existing entries
         this.plan.entries = [];
         
-        // Add schedule entries
-        schedule.forEach(entry => {
+        // Add schedule entries with order number (生成順序を保持)
+        schedule.forEach((entry, index) => {
             this.plan.entries.push({
                 id: Date.now() + Math.random(),
                 time: entry.time,
-                activity: entry.activity
+                activity: entry.activity,
+                order: index // 生成順序を保存
             });
         });
         
