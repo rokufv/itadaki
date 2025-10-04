@@ -4,10 +4,40 @@ const app = new FujisanTeamManager();
 window.app = app; // optional: for debugging in console
 
 function bindCoreEvents() {
-    // Tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => app.switchTab(tab.dataset.tab));
+    // Emergency Contact Button
+    document.getElementById('emergencyBtn')?.addEventListener('click', openEmergencyModal);
+    document.getElementById('emergencyCloseBtn')?.addEventListener('click', closeEmergencyModal);
+    document.getElementById('emergencyModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'emergencyModal') closeEmergencyModal();
     });
+
+    // Bottom Navigation
+    document.querySelectorAll('.nav-item').forEach(navItem => {
+        navItem.addEventListener('click', () => {
+            const tab = navItem.dataset.tab;
+            if (tab === 'menu') {
+                openMenu();
+            } else {
+                app.switchTab(tab);
+            }
+        });
+    });
+
+    // Menu overlay
+    document.getElementById('menuCloseBtn')?.addEventListener('click', closeMenu);
+    document.getElementById('menuOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'menuOverlay') closeMenu();
+    });
+    document.querySelectorAll('.menu-item').forEach(menuItem => {
+        menuItem.addEventListener('click', () => {
+            const tab = menuItem.dataset.tab;
+            app.switchTab(tab);
+            closeMenu();
+        });
+    });
+
+    // Health Sliders
+    setupHealthSliders();
 
     // Team name
     document.getElementById('editTeamNameBtn')?.addEventListener('click', () => app.editTeamName());
@@ -110,9 +140,79 @@ function bindCoreEvents() {
     });
 }
 
+function openMenu() {
+    document.getElementById('menuOverlay')?.classList.add('show');
+}
+
+function closeMenu() {
+    document.getElementById('menuOverlay')?.classList.remove('show');
+}
+
+function openEmergencyModal() {
+    document.getElementById('emergencyModal')?.classList.add('show');
+}
+
+function closeEmergencyModal() {
+    document.getElementById('emergencyModal')?.classList.remove('show');
+}
+
+// Health Slider UI
+function setupHealthSliders() {
+    const conditionSlider = document.getElementById('healthCondition');
+    const sleepSlider = document.getElementById('sleepHours');
+    const fatigueSlider = document.getElementById('fatigueLevel');
+
+    const conditionDisplay = document.getElementById('conditionDisplay');
+    const sleepDisplay = document.getElementById('sleepDisplay');
+    const fatigueDisplay = document.getElementById('fatigueDisplay');
+
+    if (conditionSlider && conditionDisplay) {
+        conditionSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            const labels = ['😞 不調', '😟 やや不調', '😐 普通', '🙂 良い', '😊 とても良い'];
+            conditionDisplay.textContent = `${labels[value - 1]} (${value})`;
+        });
+    }
+
+    if (sleepSlider && sleepDisplay) {
+        sleepSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            sleepDisplay.textContent = `${value.toFixed(1)} 時間`;
+        });
+    }
+
+    if (fatigueSlider && fatigueDisplay) {
+        fatigueSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            const labels = ['😌 疲れていない', '🙂 少し疲れ', '😐 普通', '😓 疲れている', '😫 とても疲れている'];
+            fatigueDisplay.textContent = `${labels[value - 1]} (${value})`;
+        });
+    }
+}
+
+// Connection Status Monitor
+function updateConnectionStatus() {
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.status-text');
+    
+    if (navigator.onLine) {
+        statusDot?.classList.add('online');
+        statusDot?.classList.remove('offline');
+        if (statusText) statusText.textContent = 'オンライン';
+    } else {
+        statusDot?.classList.remove('online');
+        statusDot?.classList.add('offline');
+        if (statusText) statusText.textContent = 'オフライン';
+    }
+}
+
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
     bindCoreEvents();
+    updateConnectionStatus();
     // Restore drafts to inputs after initial render
     app.applyDraftsToUI();
 

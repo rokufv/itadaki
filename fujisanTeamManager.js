@@ -347,10 +347,16 @@ export class FujisanTeamManager {
     }
 
     switchTab(tabName) {
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        // Update bottom navigation active state
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+        const navItem = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
+        if (navItem) navItem.classList.add('active');
+        
+        // Update tab content
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-        document.getElementById(tabName).classList.add('active');
+        document.getElementById(tabName)?.classList.add('active');
+        
+        // Update specific displays
         if (tabName === 'safety') this.updateSafetyDisplay();
         if (tabName === 'gear') this.updateGearDisplay();
         if (tabName === 'experience') this.updateExperienceDisplay();
@@ -513,25 +519,62 @@ export class FujisanTeamManager {
         if (!this.currentGearMemberId) { checklistDiv.innerHTML = '<p class="empty-state">メンバーを選択してください</p>'; return; }
         const categoryData = this.gearCategories[category];
         const memberGear = this.gearChecklist[this.currentGearMemberId] || {};
+        
+        // Add category header with description
         let html = `<h4>${categoryData.name}</h4>`;
+        if (category === 'essential') {
+            html += `<div style="background: #fff5f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #dc3545;">
+                <strong>⚠️ 必須装備について</strong><br>
+                <span style="font-size: 0.9em; color: #666;">これらは富士山登山に絶対必要な装備です。必ず全てチェックしてください。</span>
+            </div>`;
+        }
+        
         html += categoryData.items.map(item => {
             const isChecked = memberGear[item.id] || false;
+            const isEssential = category === 'essential';
+            const essentialClass = isEssential ? 'essential' : '';
+            const checkedClass = isChecked ? 'checked' : '';
             return `
-                <div class="gear-item">
-                    <input type="checkbox" class="gear-checkbox" data-gear-item-id="${item.id}" ${isChecked ? 'checked' : ''}>
-                    <span>${item.name}</span>
+                <div class="gear-item ${essentialClass} ${checkedClass}" data-item-id="${item.id}">
+                    <input type="checkbox" class="gear-checkbox" data-gear-item-id="${item.id}" ${isChecked ? 'checked' : ''} id="gear-${item.id}">
+                    <label for="gear-${item.id}">${item.name}</label>
                     <span class="gear-weight">${item.weight}kg</span>
                 </div>
             `;
         }).join('');
+        
         const totalWeight = categoryData.items.filter(item => memberGear[item.id]).reduce((sum, item) => sum + item.weight, 0);
-        html += `<div style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 8px;"><strong>選択した装備の重量: ${totalWeight.toFixed(1)}kg</strong></div>`;
+        const checkedCount = categoryData.items.filter(item => memberGear[item.id]).length;
+        const totalCount = categoryData.items.length;
+        const percentage = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+        
+        html += `<div style="margin-top: 20px; padding: 15px; background: ${percentage === 100 ? '#d4edda' : '#e9ecef'}; border-radius: 12px; border: 2px solid ${percentage === 100 ? '#28a745' : '#dee2e6'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="font-size: 1.1em;">${checkedCount}/${totalCount} 完了</strong>
+                <strong style="font-size: 1.2em; color: var(--primary-color);">${totalWeight.toFixed(1)}kg</strong>
+            </div>
+            <div class="progress-bar" style="height: 10px;">
+                <div class="progress-fill" style="width: ${percentage}%"></div>
+            </div>
+        </div>`;
+        
         checklistDiv.innerHTML = html;
     }
     toggleGearItem(itemId, isChecked) {
         if (!this.currentGearMemberId) return;
         if (!this.gearChecklist[this.currentGearMemberId]) this.gearChecklist[this.currentGearMemberId] = {};
         this.gearChecklist[this.currentGearMemberId][itemId] = isChecked;
+        
+        // Update UI immediately for better responsiveness
+        const gearItem = document.querySelector(`.gear-item[data-item-id="${itemId}"]`);
+        if (gearItem) {
+            if (isChecked) {
+                gearItem.classList.add('checked');
+            } else {
+                gearItem.classList.remove('checked');
+            }
+        }
+        
         this.saveData();
         this.showGearCategory(this.currentGearCategory);
     }
