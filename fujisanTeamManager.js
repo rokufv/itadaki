@@ -317,7 +317,156 @@ export class FujisanTeamManager {
         const selectedBtn = document.querySelector(`.hut-btn[data-hut="${hutName}"]`);
         if (selectedBtn) selectedBtn.classList.add('selected');
         
+        // Show auto schedule generator
+        const autoScheduleArea = document.getElementById('autoScheduleArea');
+        if (autoScheduleArea && this.plan.route && this.plan.hut) {
+            autoScheduleArea.style.display = 'block';
+        }
+        
         this.showToast(`${hutName}を選択しました`, 'success');
+    }
+    
+    generateAutoSchedule() {
+        if (!this.plan.route || !this.plan.hut) {
+            this.showToast('先にルートと山小屋を選択してください', 'warning');
+            return;
+        }
+        
+        // Get hut elevation
+        const huts = this.mountainHuts[this.plan.route];
+        const selectedHut = huts.find(h => h.name === this.plan.hut);
+        if (!selectedHut) {
+            this.showToast('山小屋情報が見つかりません', 'error');
+            return;
+        }
+        
+        // Generate schedule based on hut elevation and route
+        const schedule = this.calculateGoraikoSchedule(this.plan.route, selectedHut);
+        
+        // Clear existing entries
+        this.plan.entries = [];
+        
+        // Add schedule entries
+        schedule.forEach(entry => {
+            this.plan.entries.push({
+                id: Date.now() + Math.random(),
+                time: entry.time,
+                activity: entry.activity
+            });
+        });
+        
+        this.saveData();
+        this.renderPlanEntries();
+        
+        // Scroll to timeline
+        document.getElementById('planScheduleList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        this.showToast('標準スケジュールを生成しました！', 'success');
+    }
+    
+    calculateGoraikoSchedule(route, hut) {
+        const schedule = [];
+        const hutElevation = hut.elevation;
+        
+        // Calculate times based on hut elevation
+        // Higher hut = less time to summit
+        const hoursToSummit = this.calculateHoursToSummit(hutElevation);
+        
+        // Day 1
+        schedule.push({ time: '08:00', activity: '🚗 集合・出発' });
+        schedule.push({ time: '10:00', activity: '⛰️ 五合目到着' });
+        schedule.push({ time: '10:30', activity: '🥾 登山開始' });
+        
+        // Arrival time at hut depends on route and hut elevation
+        const hutArrivalHour = this.calculateHutArrivalTime(route, hutElevation);
+        schedule.push({ 
+            time: `${hutArrivalHour.toString().padStart(2, '0')}:00`, 
+            activity: `🏠 ${hut.name}到着` 
+        });
+        schedule.push({ 
+            time: `${(hutArrivalHour + 1).toString().padStart(2, '0')}:00`, 
+            activity: '🍱 夕食' 
+        });
+        schedule.push({ 
+            time: `${(hutArrivalHour + 2).toString().padStart(2, '0')}:00`, 
+            activity: '🌙 就寝' 
+        });
+        
+        // Day 2 - Goraiko (sunrise)
+        // Sunrise is around 4:30-5:30 depending on season
+        // Calculate departure time from hut
+        const sunriseTime = '05:00';
+        const departureHour = 5 - Math.ceil(hoursToSummit);
+        if (departureHour < 0) {
+            // Next day calculation
+            const actualDepartureHour = 24 + departureHour;
+            schedule.push({ 
+                time: `${actualDepartureHour.toString().padStart(2, '0')}:00`, 
+                activity: '⏰ 起床' 
+            });
+            schedule.push({ 
+                time: `${(actualDepartureHour === 23 ? '23:30' : (actualDepartureHour + 1).toString().padStart(2, '0') + ':00')}`, 
+                activity: '🚶 山小屋出発' 
+            });
+        } else {
+            schedule.push({ 
+                time: `${(departureHour - 1).toString().padStart(2, '0')}:00`, 
+                activity: '⏰ 起床' 
+            });
+            schedule.push({ 
+                time: `${departureHour.toString().padStart(2, '0')}:00`, 
+                activity: '🚶 山小屋出発' 
+            });
+        }
+        
+        schedule.push({ time: sunriseTime, activity: '🌅 山頂でご来光' });
+        schedule.push({ time: '06:00', activity: '📸 記念撮影' });
+        schedule.push({ time: '07:00', activity: '⬇️ 下山開始' });
+        
+        // Descent time
+        const descentHour = 7 + Math.ceil(hoursToSummit * 0.7); // Descent is faster
+        schedule.push({ 
+            time: `${descentHour.toString().padStart(2, '0')}:00`, 
+            activity: '⛰️ 五合目到着' 
+        });
+        schedule.push({ 
+            time: `${(descentHour + 1).toString().padStart(2, '0')}:00`, 
+            activity: '✅ 解散' 
+        });
+        
+        return schedule;
+    }
+    
+    calculateHoursToSummit(hutElevation) {
+        // Summit is at 3776m
+        const elevationDiff = 3776 - hutElevation;
+        
+        // Rough estimate: 300m per hour on average
+        const hours = elevationDiff / 300;
+        
+        return Math.max(1, Math.min(hours, 6)); // Between 1-6 hours
+    }
+    
+    calculateHutArrivalTime(route, hutElevation) {
+        // Base start time is 10:30
+        // Different routes have different starting elevations
+        const routeStartElevations = {
+            '吉田ルート': 2305,
+            '富士宮ルート': 2400,
+            '須走ルート': 2000,
+            '御殿場ルート': 1440
+        };
+        
+        const startElevation = routeStartElevations[route] || 2305;
+        const elevationDiff = hutElevation - startElevation;
+        
+        // Estimate: 300m per hour
+        const hours = Math.ceil(elevationDiff / 300);
+        
+        // Start at 10:30 (10.5), add hours
+        const arrivalTime = 10.5 + hours;
+        
+        return Math.min(Math.max(Math.floor(arrivalTime), 14), 18); // Between 14:00-18:00
     }
 
     setupAutoSave() {

@@ -168,6 +168,13 @@ function bindCoreEvents() {
         });
     });
 
+    // Plan - Auto Schedule Generator
+    document.getElementById('generateScheduleBtn')?.addEventListener('click', () => {
+        if (confirm('既存のスケジュールは削除されます。ご来光コースの標準スケジュールを自動生成しますか？')) {
+            app.generateAutoSchedule();
+        }
+    });
+
     // Plan
     document.getElementById('planDate')?.addEventListener('change', (e) => app.setPlanDate(e.target.value));
     document.getElementById('addPlanEntryBtn')?.addEventListener('click', () => app.addPlanEntry());
