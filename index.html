@@ -436,14 +436,18 @@
                     <!-- Activity Templates -->
                     <label style="display: block; margin-bottom: 10px; font-weight: 600;">よく使うアクティビティ</label>
                     <div class="activity-template-grid">
-                        <button class="activity-template-btn" data-activity="🚗 集合・出発">🚗 集合・出発</button>
-                        <button class="activity-template-btn" data-activity="⛰️ 五合目到着">⛰️ 五合目到着</button>
-                        <button class="activity-template-btn" data-activity="🏠 山小屋到着">🏠 山小屋到着</button>
-                        <button class="activity-template-btn" data-activity="🌙 就寝">🌙 就寝</button>
-                        <button class="activity-template-btn" data-activity="🌅 ご来光準備">🌅 ご来光準備</button>
-                        <button class="activity-template-btn" data-activity="🗻 山頂到着">🗻 山頂到着</button>
-                        <button class="activity-template-btn" data-activity="⬇️ 下山開始">⬇️ 下山開始</button>
-                        <button class="activity-template-btn" data-activity="✅ 解散">✅ 解散</button>
+                        <button class="activity-template-btn" data-activity="⛰️ 五合目集合">⛰️<br>五合目集合</button>
+                        <button class="activity-template-btn" data-activity="🥾 登山開始">🥾<br>登山開始</button>
+                        <button class="activity-template-btn" data-activity="🍙 休憩">🍙<br>休憩</button>
+                        <button class="activity-template-btn" data-activity="🏠 山小屋到着">🏠<br>山小屋到着</button>
+                        <button class="activity-template-btn" data-activity="🍱 夕食">🍱<br>夕食</button>
+                        <button class="activity-template-btn" data-activity="🌙 就寝">🌙<br>就寝</button>
+                        <button class="activity-template-btn" data-activity="⏰ 起床">⏰<br>起床</button>
+                        <button class="activity-template-btn" data-activity="🔦 山小屋出発">🔦<br>山小屋出発</button>
+                        <button class="activity-template-btn" data-activity="🌅 ご来光">🌅<br>ご来光</button>
+                        <button class="activity-template-btn" data-activity="📸 記念撮影">📸<br>記念撮影</button>
+                        <button class="activity-template-btn" data-activity="⬇️ 下山開始">⬇️<br>下山開始</button>
+                        <button class="activity-template-btn" data-activity="✅ 五合目解散">✅<br>五合目解散</button>
                     </div>
 
                     <!-- Manual Input -->
@@ -467,7 +471,10 @@
 
                 <!-- Schedule Timeline -->
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
-                    <h3 style="margin-top: 0;">🕒 タイムライン</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0;">🕒 タイムライン</h3>
+                        <button class="btn btn-danger" id="clearTimelineBtn" style="margin: 0;">🗑️ タイムライン全削除</button>
+                    </div>
                     <div id="planScheduleList"></div>
                 </div>
             </div>

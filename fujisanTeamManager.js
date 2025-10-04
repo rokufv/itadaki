@@ -176,6 +176,12 @@ export class FujisanTeamManager {
         this.renderPlanEntries();
         this.scheduleSave(300);
     }
+    clearTimeline() {
+        this.plan.entries = [];
+        this.renderPlanEntries();
+        this.saveData();
+        this.showToast('タイムラインを全て削除しました', 'success');
+    }
     exportPlan() {
         const lines = [];
         lines.push(`${this.teamName} - 富士山登頂計画`);
@@ -409,7 +415,6 @@ export class FujisanTeamManager {
             activity: '🌙 就寝' 
         });
         
-        // ━━━ Day 2（2日目）ご来光コース ━━━
         const sunriseTime = '05:00';
         const departureHour = 5 - Math.ceil(hoursToSummit);
         

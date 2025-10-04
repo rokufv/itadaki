@@ -180,6 +180,14 @@ function bindCoreEvents() {
     document.getElementById('addPlanEntryBtn')?.addEventListener('click', () => app.addPlanEntry());
     document.getElementById('clearPlanBtn')?.addEventListener('click', () => app.clearPlan());
     document.getElementById('exportPlanBtn')?.addEventListener('click', () => app.exportPlan());
+    
+    // Clear Timeline
+    document.getElementById('clearTimelineBtn')?.addEventListener('click', () => {
+        if (confirm('タイムラインの全てのスケジュールを削除しますか？')) {
+            app.clearTimeline();
+        }
+    });
+    
     document.getElementById('planScheduleList')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action="delete-plan-entry"]');
         if (btn) {

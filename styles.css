@@ -502,15 +502,18 @@ body {
     border: 2px solid #dee2e6;
     border-radius: 10px;
     padding: 14px 12px;
-    font-size: 15px;
+    font-size: 26px;
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
     color: var(--dark-color);
-    min-height: 52px;
+    min-height: 70px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    line-height: 1.2;
+    text-align: center;
 }
 
 .activity-template-btn:hover {
@@ -1125,13 +1128,14 @@ body {
 
     /* Activity template mobile */
     .activity-template-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
     }
 
     .activity-template-btn {
-        padding: 16px 14px;
-        min-height: 56px;
-        font-size: 16px;
+        padding: 12px 8px;
+        min-height: 75px;
+        font-size: 24px;
     }
 
     .plan-input-form {
