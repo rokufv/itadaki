@@ -11,6 +11,106 @@ export class HealthManager {
     }
 
     /**
+     * 体調を記録
+     */
+    recordHealth() {
+        this.context.safeExecute(() => {
+            const memberId = parseInt(document.getElementById('healthMember')?.value);
+            const condition = parseInt(document.getElementById('healthCondition')?.value);
+            const sleepHours = parseFloat(document.getElementById('sleepHours')?.value);
+            const fatigueLevel = parseInt(document.getElementById('fatigueLevel')?.value);
+            
+            if (!memberId) {
+                this.context.showToast('メンバーを選択してください', 'warning');
+                return;
+            }
+            
+            const member = this.context.members.find(m => m.id === memberId);
+            if (!member) return;
+            
+            const healthRecord = {
+                id: Date.now(),
+                memberId,
+                memberName: member.name,
+                condition,
+                sleepHours,
+                fatigueLevel,
+                recordedAt: new Date().toISOString()
+            };
+            
+            this.context.healthRecords.push(healthRecord);
+            this.context.saveData();
+            this.updateRiskAssessment();
+            this.context.showToast(`${member.name}さんの体調を記録しました`, 'success');
+        }, 'Record health');
+    }
+
+    /**
+     * 体調フォームをクリア
+     */
+    clearHealthForm() {
+        const fields = {
+            'healthMember': '',
+            'healthCondition': '3',
+            'sleepHours': '',
+            'fatigueLevel': '1'
+        };
+        
+        Object.entries(fields).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        });
+    }
+
+    /**
+     * 体調記録履歴を表示
+     */
+    showHealthHistory() {
+        if (this.context.healthRecords.length === 0) {
+            this.context.showToast('体調記録がありません', 'warning');
+            return;
+        }
+        
+        const historyHtml = this.context.healthRecords
+            .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
+            .slice(0, 10)
+            .map(record => {
+                const date = new Date(record.recordedAt);
+                return `
+                    <div class="health-record">
+                        <div><strong>${record.memberName}</strong> - ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
+                        <div>体調: ${record.condition}/5, 睡眠: ${record.sleepHours || '未記録'}時間, 疲労: ${record.fatigueLevel}/5</div>
+                    </div>
+                `;
+            }).join('');
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay show';
+        modal.innerHTML = `
+            <div class="confirm-dialog" style="max-width: 600px;">
+                <h3>📊 体調記録履歴（最新10件）</h3>
+                <div style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
+                    ${historyHtml}
+                </div>
+                <button class="btn" data-action="close-modal">閉じる</button>
+            </div>
+        `;
+        
+        // メモリリーク対策
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target.matches('[data-action="close-modal"]') || e.target === modal) {
+                closeModal();
+            }
+        });
+        
+        document.body.appendChild(modal);
+    }
+
+    /**
      * 安全管理スコアを計算
      * @param {number} memberId - メンバーID
      * @returns {number} 安全スコア (0-100)

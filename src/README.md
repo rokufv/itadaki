@@ -8,12 +8,14 @@
 ├── mountainData.js                 # 山小屋・装備データ
 ├── timeUtils.js                    # 時刻計算ユーティリティ
 ├── managers/
-│   ├── scheduleManager.js         # スケジュール生成・管理
-│   ├── healthManager.js           # 体調・安全管理
-│   ├── storageManager.js          # データ永続化
-│   ├── memberManager.js           # メンバー管理（未実装）
-│   ├── gearManager.js             # 装備管理（未実装）
-│   └── hikingManager.js           # 登山記録管理（未実装）
+│   ├── scheduleManager.js         # スケジュール生成・管理 ✅
+│   ├── healthManager.js           # 体調・安全管理 ✅
+│   ├── storageManager.js          # データ永続化 ✅
+│   ├── memberManager.js           # メンバー管理 ✅
+│   ├── gearManager.js             # 装備管理 ✅
+│   ├── hikingManager.js           # 登山記録管理 ✅
+│   ├── preparationManager.js      # 準備度計算 ✅
+│   └── uiManager.js               # UI管理 ✅
 ├── fujisanTeamManagerRefactored.js # メインクラス（リファクタリング版）
 └── README.md                       # このファイル
 ```
