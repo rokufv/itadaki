@@ -373,36 +373,90 @@
             </div>
 
             <div id="plan" class="tab-content">
-                <h2>🗓️ 登頂計画</h2>
+                <h2>🗓️ 富士山登頂計画</h2>
+                
+                <!-- Route Selection -->
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">🗻 登山ルート選択</h3>
+                    <div class="route-grid">
+                        <button class="route-btn" data-route="吉田ルート">
+                            <div class="route-name">🟡 吉田ルート</div>
+                            <div class="route-info">五合目: 2305m</div>
+                            <div class="route-detail">最も人気・初心者向け</div>
+                        </button>
+                        <button class="route-btn" data-route="富士宮ルート">
+                            <div class="route-name">🔴 富士宮ルート</div>
+                            <div class="route-info">五合目: 2400m</div>
+                            <div class="route-detail">最短距離・上級者向け</div>
+                        </button>
+                        <button class="route-btn" data-route="須走ルート">
+                            <div class="route-name">🔵 須走ルート</div>
+                            <div class="route-info">五合目: 2000m</div>
+                            <div class="route-detail">静か・樹林帯が魅力</div>
+                        </button>
+                        <button class="route-btn" data-route="御殿場ルート">
+                            <div class="route-name">🟢 御殿場ルート</div>
+                            <div class="route-info">五合目: 1440m</div>
+                            <div class="route-detail">最長・健脚者向け</div>
+                        </button>
+                    </div>
+                    <div id="selectedRouteDisplay" style="margin-top: 15px; padding: 12px; background: white; border-radius: 8px; display: none;">
+                        <strong>選択中：</strong> <span id="selectedRouteText"></span>
+                    </div>
+                </div>
+
+                <!-- Mountain Hut Selection -->
+                <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">🏠 山小屋選択</h3>
+                    <div id="hutSelectionArea">
+                        <p style="color: #666; text-align: center;">先にルートを選択してください</p>
+                    </div>
+                </div>
+
+                <!-- Plan Details -->
                 <div style="background: #eef6ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">📅 登頂予定日</h3>
                     <div class="form-group">
-                        <label>富士山登頂予定日</label>
-                        <input type="date" id="planDate">
+                        <input type="date" id="planDate" style="font-size: 18px; padding: 14px;">
                     </div>
-                    <div class="form-group">
-                        <label>山小屋</label>
-                        <input type="text" id="planHut" placeholder="例: ○○山荘">
+
+                    <h3 style="margin-top: 25px; margin-bottom: 15px;">⏰ スケジュール登録</h3>
+                    
+                    <!-- Activity Templates -->
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">よく使うアクティビティ</label>
+                    <div class="activity-template-grid">
+                        <button class="activity-template-btn" data-activity="🚗 集合・出発">🚗 集合・出発</button>
+                        <button class="activity-template-btn" data-activity="⛰️ 五合目到着">⛰️ 五合目到着</button>
+                        <button class="activity-template-btn" data-activity="🏠 山小屋到着">🏠 山小屋到着</button>
+                        <button class="activity-template-btn" data-activity="🌙 就寝">🌙 就寝</button>
+                        <button class="activity-template-btn" data-activity="🌅 ご来光準備">🌅 ご来光準備</button>
+                        <button class="activity-template-btn" data-activity="🗻 山頂到着">🗻 山頂到着</button>
+                        <button class="activity-template-btn" data-activity="⬇️ 下山開始">⬇️ 下山開始</button>
+                        <button class="activity-template-btn" data-activity="✅ 解散">✅ 解散</button>
                     </div>
-                    <div class="form-group" style="display: grid; grid-template-columns: 140px 1fr auto; gap: 10px; align-items: end;">
-                        <div>
+
+                    <!-- Manual Input -->
+                    <div class="plan-input-form">
+                        <div class="form-group">
                             <label>時刻</label>
-                            <input type="time" id="planTime" step="900">
+                            <input type="time" id="planTime" step="900" style="font-size: 18px;">
                         </div>
-                        <div>
+                        <div class="form-group">
                             <label>アクティビティ</label>
-                            <input type="text" id="planActivity" placeholder="集合、登山開始、ご来光 など">
+                            <input type="text" id="planActivity" placeholder="または直接入力">
                         </div>
-                        <div>
-                            <button class="btn" id="addPlanEntryBtn">➕ 追加</button>
-                        </div>
+                        <button class="btn btn-large btn-success" id="addPlanEntryBtn">➕ スケジュールに追加</button>
                     </div>
-                    <div style="margin-top: 10px;">
-                        <button class="btn btn-secondary" id="clearPlanBtn">🔄 クリア</button>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-secondary" id="clearPlanBtn">🔄 全クリア</button>
                         <button class="btn btn-info" id="exportPlanBtn">📤 計画を出力</button>
                     </div>
                 </div>
+
+                <!-- Schedule Timeline -->
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
-                    <h3 style="margin-top: 0;">🕒 スケジュール</h3>
+                    <h3 style="margin-top: 0;">🕒 タイムライン</h3>
                     <div id="planScheduleList"></div>
                 </div>
             </div>

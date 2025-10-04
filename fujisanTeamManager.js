@@ -14,6 +14,7 @@ export class FujisanTeamManager {
         this.plan = {
             date: '',
             hut: '',
+            route: '',
             entries: [] // { id, time, activity }
         };
         // Server sync (Vercel KV)
@@ -21,6 +22,38 @@ export class FujisanTeamManager {
         this.teamId = null;
         this.writeToken = null;
         this._serverSaveTimer = null;
+
+        // Mountain huts by route
+        this.mountainHuts = {
+            '吉田ルート': [
+                { name: '七合目トモエ館', elevation: 2740 },
+                { name: '七合目鎌岩館', elevation: 2790 },
+                { name: '七合目富士一館', elevation: 2800 },
+                { name: '八合目太子館', elevation: 3100 },
+                { name: '八合目蓬莱館', elevation: 3150 },
+                { name: '八合目白雲荘', elevation: 3200 },
+                { name: '八合目元祖室', elevation: 3250 },
+                { name: '本八合目トモエ館', elevation: 3400 }
+            ],
+            '富士宮ルート': [
+                { name: '六合目雲海荘', elevation: 2490 },
+                { name: '新七合目御来光山荘', elevation: 2780 },
+                { name: '元祖七合目山口山荘', elevation: 3010 },
+                { name: '八合目池田館', elevation: 3250 },
+                { name: '九合目万年雪山荘', elevation: 3460 },
+                { name: '九合五勺胸突山荘', elevation: 3590 }
+            ],
+            '須走ルート': [
+                { name: '七合目大陽館', elevation: 2700 },
+                { name: '七合目見晴館', elevation: 2750 },
+                { name: '本七合目江戸屋', elevation: 2960 },
+                { name: '八合目江戸屋', elevation: 3350 }
+            ],
+            '御殿場ルート': [
+                { name: '七合五勺わらじ館', elevation: 3050 },
+                { name: '赤岩八合館', elevation: 3300 }
+            ]
+        };
 
         this.gearCategories = {
             essential: {
@@ -175,14 +208,116 @@ export class FujisanTeamManager {
             container.innerHTML = '<div class="empty-state">スケジュールがありません</div>';
             return;
         }
-        container.innerHTML = sorted.map(e => `
-            <div class="hiking-record" style="display:flex; justify-content: space-between; align-items:center;">
-                <div>
-                    <div><strong>${e.time}</strong> - ${e.activity}</div>
+        
+        // Calculate duration between entries
+        container.innerHTML = sorted.map((e, index) => {
+            let durationHtml = '';
+            if (index > 0) {
+                const prevTime = sorted[index - 1].time;
+                const duration = this.calculateTimeDuration(prevTime, e.time);
+                if (duration) {
+                    durationHtml = `<span class="timeline-duration">+${duration}</span>`;
+                }
+            }
+            
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-time">${e.time}</div>
+                    <div class="timeline-connector"></div>
+                    <div class="timeline-activity">${e.activity}${durationHtml}</div>
+                    <button class="timeline-delete" data-action="delete-plan-entry" data-id="${e.id}">削除</button>
                 </div>
-                <button class="btn btn-danger" data-action="delete-plan-entry" data-id="${e.id}">削除</button>
+            `;
+        }).join('');
+    }
+    
+    calculateTimeDuration(time1, time2) {
+        try {
+            const [h1, m1] = time1.split(':').map(Number);
+            const [h2, m2] = time2.split(':').map(Number);
+            let minutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+            if (minutes < 0) minutes += 24 * 60; // Handle next day
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            if (hours > 0 && mins > 0) return `${hours}時間${mins}分`;
+            if (hours > 0) return `${hours}時間`;
+            if (mins > 0) return `${mins}分`;
+            return '';
+        } catch (e) {
+            return '';
+        }
+    }
+    
+    selectRoute(route) {
+        this.plan.route = route;
+        this.scheduleSave(300);
+        
+        // Update UI
+        document.querySelectorAll('.route-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        const selectedBtn = document.querySelector(`.route-btn[data-route="${route}"]`);
+        if (selectedBtn) selectedBtn.classList.add('selected');
+        
+        // Show route display
+        const display = document.getElementById('selectedRouteDisplay');
+        const text = document.getElementById('selectedRouteText');
+        if (display && text) {
+            display.style.display = 'block';
+            text.textContent = route;
+        }
+        
+        // Show mountain huts for this route
+        this.showMountainHuts(route);
+        
+        this.showToast(`${route}を選択しました`, 'success');
+    }
+    
+    showMountainHuts(route) {
+        const hutArea = document.getElementById('hutSelectionArea');
+        if (!hutArea) return;
+        
+        const huts = this.mountainHuts[route];
+        if (!huts || huts.length === 0) {
+            hutArea.innerHTML = '<p style="color: #666; text-align: center;">このルートの山小屋情報がありません</p>';
+            return;
+        }
+        
+        hutArea.innerHTML = `
+            <div class="hut-grid">
+                ${huts.map(hut => `
+                    <button class="hut-btn ${this.plan.hut === hut.name ? 'selected' : ''}" data-hut="${hut.name}">
+                        <div>
+                            <div class="hut-name">${hut.name}</div>
+                            <div class="hut-info">標高 ${hut.elevation}m</div>
+                        </div>
+                        <div class="hut-elevation">${hut.elevation}m</div>
+                    </button>
+                `).join('')}
             </div>
-        `).join('');
+        `;
+        
+        // Add event listeners to hut buttons
+        hutArea.querySelectorAll('.hut-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const hutName = btn.dataset.hut;
+                this.selectHut(hutName);
+            });
+        });
+    }
+    
+    selectHut(hutName) {
+        this.plan.hut = hutName;
+        this.scheduleSave(300);
+        
+        // Update UI
+        document.querySelectorAll('.hut-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        const selectedBtn = document.querySelector(`.hut-btn[data-hut="${hutName}"]`);
+        if (selectedBtn) selectedBtn.classList.add('selected');
+        
+        this.showToast(`${hutName}を選択しました`, 'success');
     }
 
     setupAutoSave() {
@@ -1014,9 +1149,13 @@ export class FujisanTeamManager {
     updatePlanDisplay() {
         // Set inputs from model in case of direct model changes
         const dateEl = document.getElementById('planDate');
-        const hutEl = document.getElementById('planHut');
         if (dateEl && this.plan.date) dateEl.value = this.plan.date;
-        if (hutEl && this.plan.hut) hutEl.value = this.plan.hut;
+        
+        // Restore route selection
+        if (this.plan.route) {
+            this.selectRoute(this.plan.route);
+        }
+        
         this.renderPlanEntries();
     }
 

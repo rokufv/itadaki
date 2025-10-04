@@ -150,9 +150,26 @@ function bindCoreEvents() {
         }
     });
 
+    // Plan - Route Selection
+    document.querySelectorAll('.route-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const route = btn.dataset.route;
+            app.selectRoute(route);
+        });
+    });
+
+    // Plan - Activity Templates
+    document.querySelectorAll('.activity-template-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const activity = btn.dataset.activity;
+            document.getElementById('planActivity').value = activity;
+            document.getElementById('planTime')?.focus();
+            app.showToast('アクティビティを入力しました', 'success');
+        });
+    });
+
     // Plan
     document.getElementById('planDate')?.addEventListener('change', (e) => app.setPlanDate(e.target.value));
-    document.getElementById('planHut')?.addEventListener('input', (e) => app.setPlanHut(e.target.value));
     document.getElementById('addPlanEntryBtn')?.addEventListener('click', () => app.addPlanEntry());
     document.getElementById('clearPlanBtn')?.addEventListener('click', () => app.clearPlan());
     document.getElementById('exportPlanBtn')?.addEventListener('click', () => app.exportPlan());

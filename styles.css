@@ -379,6 +379,162 @@ body {
     margin-bottom: 15px;
 }
 
+/* Route Selection */
+.route-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.route-btn {
+    background: white;
+    border: 3px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 18px 14px;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.route-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    border-color: var(--primary-color);
+}
+
+.route-btn:active {
+    transform: scale(0.97);
+}
+
+.route-btn.selected {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, #f0e7ff 0%, #e7d9ff 100%);
+    box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+}
+
+.route-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--dark-color);
+    margin-bottom: 4px;
+}
+
+.route-info {
+    font-size: 15px;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.route-detail {
+    font-size: 13px;
+    color: #666;
+}
+
+/* Mountain Hut Selection */
+.hut-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.hut-btn {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hut-btn:hover {
+    background: #f8f9fa;
+    border-color: var(--primary-color);
+}
+
+.hut-btn:active {
+    transform: scale(0.98);
+}
+
+.hut-btn.selected {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffe9a0 100%);
+    border-color: #ffc107;
+    font-weight: 600;
+}
+
+.hut-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.hut-info {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.hut-elevation {
+    font-size: 14px;
+    color: var(--primary-color);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Activity Template Buttons */
+.activity-template-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.activity-template-btn {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 14px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--dark-color);
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.activity-template-btn:hover {
+    background: linear-gradient(135deg, #e7f3ff 0%, #d0e7ff 100%);
+    border-color: var(--info-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(23, 162, 184, 0.2);
+}
+
+.activity-template-btn:active {
+    transform: scale(0.95);
+    background: var(--info-color);
+    color: white;
+}
+
+/* Plan Input Form */
+.plan-input-form {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    margin-top: 20px;
+}
+
 /* Bottom Navigation */
 .bottom-nav {
     position: fixed;
@@ -956,6 +1112,109 @@ body {
     .mountain-input-form {
         padding: 15px;
     }
+
+    /* Route grid mobile */
+    .route-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .route-btn {
+        min-height: 100px;
+        padding: 16px 14px;
+    }
+
+    /* Activity template mobile */
+    .activity-template-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .activity-template-btn {
+        padding: 16px 14px;
+        min-height: 56px;
+        font-size: 16px;
+    }
+
+    .plan-input-form {
+        padding: 15px;
+    }
+}
+
+/* Timeline Display */
+.timeline-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--primary-color);
+    transition: var(--transition);
+    position: relative;
+}
+
+.timeline-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.timeline-time {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--primary-color);
+    min-width: 80px;
+}
+
+.timeline-connector {
+    width: 30px;
+    height: 2px;
+    background: var(--primary-color);
+    margin: 0 15px;
+    position: relative;
+}
+
+.timeline-connector::after {
+    content: '▶';
+    position: absolute;
+    right: -8px;
+    top: -8px;
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.timeline-activity {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--dark-color);
+}
+
+.timeline-delete {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.timeline-delete:hover {
+    background: #c82333;
+}
+
+.timeline-delete:active {
+    transform: scale(0.95);
+}
+
+.timeline-duration {
+    font-size: 13px;
+    color: #666;
+    margin-left: 10px;
+    background: #f8f9fa;
+    padding: 4px 10px;
+    border-radius: 12px;
 }
 
 .loading {
