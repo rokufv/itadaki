@@ -373,29 +373,17 @@ export class FujisanTeamManager {
         const hoursToHut = this.calculateHoursToHut(route, hutElevation);
         
         // ━━━ Day 1（1日目）━━━
-        schedule.push({ time: '08:00', activity: '🚗 集合・出発' });
-        schedule.push({ time: '10:00', activity: '⛰️ 五合目到着' });
-        schedule.push({ time: '10:15', activity: '📋 装備最終チェック' });
-        schedule.push({ time: '10:30', activity: '🥾 登山開始' });
+        schedule.push({ time: '10:00', activity: '⛰️ 五合目集合' });
+        schedule.push({ time: '10:30', activity: '📋 装備確認・登山開始' });
         
         // Add rest stops based on climbing time
-        if (hoursToHut >= 4) {
-            const firstRestHour = 10.5 + (hoursToHut / 3);
+        if (hoursToHut >= 3) {
+            const firstRestHour = 10.5 + (hoursToHut / 2);
             const fh = Math.floor(firstRestHour);
             const fm = Math.round((firstRestHour % 1) * 60);
             schedule.push({ 
                 time: `${fh.toString().padStart(2, '0')}:${fm.toString().padStart(2, '0')}`, 
-                activity: '🍙 休憩・軽食' 
-            });
-        }
-        
-        if (hoursToHut >= 5) {
-            const secondRestHour = 10.5 + (hoursToHut * 2 / 3);
-            const sh = Math.floor(secondRestHour);
-            const sm = Math.round((secondRestHour % 1) * 60);
-            schedule.push({ 
-                time: `${sh.toString().padStart(2, '0')}:${sm.toString().padStart(2, '0')}`, 
-                activity: '💧 水分補給・休憩' 
+                activity: '🍙 休憩・水分補給' 
             });
         }
         
@@ -408,126 +396,54 @@ export class FujisanTeamManager {
             activity: `🏠 ${hut.name}到着` 
         });
         
-        // High altitude check (especially for lower huts)
-        if (hutElevation < 3000) {
-            schedule.push({ 
-                time: `${(hutArrivalHour + 1).toString().padStart(2, '0')}:00`, 
-                activity: '💊 高山病チェック・水分補給' 
-            });
-            schedule.push({ 
-                time: `${(hutArrivalHour + 2).toString().padStart(2, '0')}:00`, 
-                activity: '🍱 夕食' 
-            });
-            schedule.push({ 
-                time: `${(hutArrivalHour + 3).toString().padStart(2, '0')}:00`, 
-                activity: '🌙 就寝' 
-            });
-        } else {
-            schedule.push({ 
-                time: `${(hutArrivalHour + 1).toString().padStart(2, '0')}:00`, 
-                activity: '🍱 夕食' 
-            });
-            schedule.push({ 
-                time: `${Math.min(hutArrivalHour + 2, 20).toString().padStart(2, '0')}:00`, 
-                activity: '💊 体調確認' 
-            });
-            schedule.push({ 
-                time: `${Math.min(hutArrivalHour + 3, 21).toString().padStart(2, '0')}:00`, 
-                activity: '🌙 就寝' 
-            });
-        }
+        // Evening at hut
+        const dinnerHour = Math.min(Math.max(hutArrivalHour + 1, 17), 19);
+        schedule.push({ 
+            time: `${dinnerHour.toString().padStart(2, '0')}:00`, 
+            activity: '🍱 夕食' 
+        });
+        
+        const bedtimeHour = Math.min(Math.max(dinnerHour + 2, 19), 21);
+        schedule.push({ 
+            time: `${bedtimeHour.toString().padStart(2, '0')}:00`, 
+            activity: '🌙 就寝' 
+        });
         
         // ━━━ Day 2（2日目）ご来光コース ━━━
-        // Sunrise around 4:30-5:30 (using 5:00 as standard)
         const sunriseTime = '05:00';
         const departureHour = 5 - Math.ceil(hoursToSummit);
         
-        let wakeUpHour, departHour;
+        // Wake up and departure
+        let wakeUpHour = Math.max(departureHour - 1, 1);
         if (departureHour < 0) {
-            // Very close to summit (late night departure)
-            const actualDepartureHour = 24 + departureHour;
-            wakeUpHour = actualDepartureHour - 1;
-            schedule.push({ 
-                time: `${wakeUpHour.toString().padStart(2, '0')}:00`, 
-                activity: '⏰ 起床・準備' 
-            });
-            const snackHour = wakeUpHour < 23 ? wakeUpHour : 23;
-            schedule.push({ 
-                time: `${snackHour.toString().padStart(2, '0')}:30`, 
-                activity: '🍞 軽食（行動食）' 
-            });
-            schedule.push({ 
-                time: `${actualDepartureHour.toString().padStart(2, '0')}:00`, 
-                activity: '🔦 山小屋出発（ヘッドライト）' 
-            });
-        } else {
-            wakeUpHour = Math.max(departureHour - 1, 1);
-            schedule.push({ 
-                time: `${wakeUpHour.toString().padStart(2, '0')}:00`, 
-                activity: '⏰ 起床・準備' 
-            });
-            const snackHour2 = wakeUpHour < 4 ? wakeUpHour : 4;
-            schedule.push({ 
-                time: `${snackHour2.toString().padStart(2, '0')}:30`, 
-                activity: '🍞 軽食（行動食）' 
-            });
-            schedule.push({ 
-                time: `${Math.max(departureHour, 2).toString().padStart(2, '0')}:00`, 
-                activity: '🔦 山小屋出発（ヘッドライト）' 
-            });
+            wakeUpHour = 24 + departureHour - 1;
         }
         
-        // Add rest during night climb if needed
-        if (hoursToSummit > 2) {
-            const nightRestTime = 5 - (hoursToSummit / 2);
-            const nrh = Math.floor(nightRestTime);
-            const nrm = Math.round((nightRestTime % 1) * 60);
-            if (nrh >= 0) {
-                schedule.push({ 
-                    time: `${nrh.toString().padStart(2, '0')}:${nrm.toString().padStart(2, '0')}`, 
-                    activity: '⭐ 小休止・防寒対策確認' 
-                });
-            }
-        }
+        schedule.push({ 
+            time: `${wakeUpHour.toString().padStart(2, '0')}:00`, 
+            activity: '⏰ 起床・準備' 
+        });
         
-        schedule.push({ time: '04:30', activity: '⛰️ 山頂手前・ご来光待機' });
+        const actualDepartureHour = departureHour < 0 ? 24 + departureHour : departureHour;
+        schedule.push({ 
+            time: `${Math.max(actualDepartureHour, 1).toString().padStart(2, '0')}:00`, 
+            activity: '🔦 山小屋出発（ヘッドライト装着）' 
+        });
+        
+        // Sunrise at summit
         schedule.push({ time: sunriseTime, activity: '🌅 山頂でご来光（標高3776m）' });
-        schedule.push({ time: '05:30', activity: '🙏 お鉢巡り（任意）' });
-        schedule.push({ time: '06:00', activity: '📸 記念撮影' });
-        schedule.push({ time: '06:30', activity: '☕ 山頂で休憩' });
+        schedule.push({ time: '06:00', activity: '📸 記念撮影・休憩' });
         schedule.push({ time: '07:00', activity: '⬇️ 下山開始' });
         
-        // Descent with breaks
-        const descentTime = hoursToSummit * 0.7; // Faster descent
-        const descentBreakTime = 7 + (descentTime / 2);
-        
-        if (descentTime > 2) {
-            const dbh = Math.floor(descentBreakTime);
-            const dbm = Math.round((descentBreakTime % 1) * 60);
-            schedule.push({ 
-                time: `${dbh.toString().padStart(2, '0')}:${dbm.toString().padStart(2, '0')}`, 
-                activity: '🏠 山小屋前通過・小休憩' 
-            });
-        }
-        
-        const fiveGoArrivalTime = 7 + descentTime;
+        // Descent
+        const totalDescentTime = hoursToHut * 0.7; // Faster than ascent
+        const fiveGoArrivalTime = 7 + totalDescentTime;
         const fah = Math.floor(fiveGoArrivalTime);
         const fam = Math.round((fiveGoArrivalTime % 1) * 60);
+        
         schedule.push({ 
             time: `${fah.toString().padStart(2, '0')}:${fam.toString().padStart(2, '0')}`, 
-            activity: '⛰️ 五合目到着' 
-        });
-        
-        const lunchTime = fiveGoArrivalTime + 0.5;
-        const lh = Math.floor(lunchTime);
-        const lm = Math.round((lunchTime % 1) * 60);
-        schedule.push({ 
-            time: `${lh.toString().padStart(2, '0')}:${lm.toString().padStart(2, '0')}`, 
-            activity: '🍜 昼食・休憩' 
-        });
-        schedule.push({ 
-            time: `${Math.floor(fiveGoArrivalTime + 1).toString().padStart(2, '0')}:00`, 
-            activity: '✅ 解散・下山' 
+            activity: '⛰️ 五合目到着・解散' 
         });
         
         return schedule;
